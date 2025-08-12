@@ -3,36 +3,53 @@ from sqlalchemy import text
 import pandas as pd
 import numpy as np
 
+def tabla_existe(nombre_tabla):
+    """Verifica si la tabla ya existe en la base de datos (versión mejorada)"""
+    query = text("""
+        SELECT EXISTS (
+            SELECT 1 
+            FROM information_schema.tables 
+            WHERE table_name = :tabla
+            AND table_schema NOT IN ('information_schema', 'pg_catalog')
+        );
+    """)
+    resultado = db.session.execute(query, {'tabla': nombre_tabla.lower()}).scalar()
+    return resultado
+
 def crear_tabla_dinamica(tabla, df):
-    """
-    Crea una tabla con la estructura del DataFrame
-    Args:
-        tabla: Nombre de la tabla (sin espacios ni caracteres especiales)
-        df: DataFrame de pandas con los datos
-    """
-    # Normalizar nombres de columnas (PostgreSQL recomienda snake_case)
-    df.columns = [col.lower().replace(' ', '_').replace('ó', 'o') for col in df.columns]
+    # Verificar primero si la tabla existe
+    if tabla_existe(tabla):
+        return False, f"La tabla '{tabla}' ya existe. No se realizaron cambios."
     
-    # Mapeo de tipos de pandas a PostgreSQL
-    tipo_map = {
-        'object': 'TEXT',
-        'int64': 'BIGINT',
-        'float64': 'DOUBLE PRECISION',
-        'bool': 'BOOLEAN',
-        'datetime64[ns]': 'TIMESTAMP',
-        'timedelta64[ns]': 'INTERVAL'
-    }
+    try:
+        # Normalizar nombres de columnas
+        df.columns = [col.lower().replace(' ', '_').replace('ó', 'o') for col in df.columns]
+        
+        # Mapeo de tipos
+        tipo_map = {
+            'object': 'TEXT',
+            'int64': 'BIGINT',
+            'float64': 'DOUBLE PRECISION',
+            'bool': 'BOOLEAN',
+            'datetime64[ns]': 'TIMESTAMP'
+        }
+        
+        # Generar definiciones de columnas
+        column_defs = []
+        for col, dtype in df.dtypes.items():
+            pg_type = tipo_map.get(str(dtype), 'TEXT')
+            column_defs.append(f'"{col}" {pg_type}')
+        
+        
+        sql = f'CREATE TABLE {tabla} ({", ".join(column_defs)})'
+        db.session.execute(text(sql))
+        db.session.commit()
+        
+        return True, f"Tabla '{tabla}' creada exitosamente."
     
-    # Generar SQL
-    column_defs = []
-    for col, dtype in df.dtypes.items():
-        pg_type = tipo_map.get(str(dtype), 'TEXT')
-        column_defs.append(f'"{col}" {pg_type}')
-    
-    # Crear tabla
-    sql = f'CREATE TABLE IF NOT EXISTS {tabla} ({", ".join(column_defs)})'
-    db.session.execute(text(sql))
-    db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return False, f"Error al crear tabla: {str(e)}"
 
 def insertar_fila(tabla, df):
     """

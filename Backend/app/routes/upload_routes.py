@@ -43,12 +43,16 @@ def upload_file():
         # Normalizar nombre de tabla
         nombre_tabla = re.sub(r'[^a-zA-Z0-9]', '_', nombre_tabla).lower()
         
-        # Procesar
-        crear_tabla_dinamica(nombre_tabla, df)
+        # Crear tabla
+        success, msg = crear_tabla_dinamica(nombre_tabla, df)
+        
+        if not success:
+            # Manejar error o tabla existente
+            return jsonify({"error": msg}), 400
         insertar_fila(nombre_tabla, df)
         
         return jsonify({
-            "mensaje": f"Tabla {nombre_tabla} creada con éxito",
+            "mensaje": msg,
             "columnas": list(df.columns),
             "filas_insertadas": len(df)
         })
