@@ -48,7 +48,10 @@ def tablas():
     usuario_id = get_jwt_identity()
     try:
         tablas = MetaTabla.query.filter_by(usuario_id=usuario_id).all()
-        lista = [{"id": t.id, "nombre_tabla": t.nombre_tabla} for t in tablas]
+        lista = [{"id": t.id, 
+                  "nombre": t.nombre_tabla,
+                  "fecha_creacion": t.fecha_creacion.isoformat() if hasattr(t, 'fecha_creacion') else None
+                  } for t in tablas]
         return jsonify(lista)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
