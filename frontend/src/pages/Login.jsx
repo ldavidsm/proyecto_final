@@ -1,8 +1,10 @@
 import { useState, useContext } from "react";
 import { login } from "../services/authService";
+import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
 export default function Login() {
+  const navigate = useNavigate();
   const { loginUser } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -13,6 +15,7 @@ const handleSubmit = async (e) => {
   try {
     const data = await login(email, password);
     loginUser(data.access_token, data.refresh_token);
+    navigate("/dashboard");
   } catch (err) {
     setError(err.response?.data?.error || "Error al iniciar sesión");
   }
