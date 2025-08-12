@@ -1,24 +1,64 @@
 from app.extensions import db
 from sqlalchemy import text
+import pandas as pd
+import numpy as np
 
-def crear_tabla_dinamica(tabla, columnas):
+def crear_tabla_dinamica(tabla, df):
     """
-    columnas: dict {columna: tipo_sql} ejemplo {'nombre': 'VARCHAR(100)', 'edad': 'INTEGER'}
+    Crea una tabla con la estructura del DataFrame
+    Args:
+        tabla: Nombre de la tabla (sin espacios ni caracteres especiales)
+        df: DataFrame de pandas con los datos
     """
-    cols_sql = ', '.join([f"{col} {tipo}" for col, tipo in columnas.items()])
-    sql = f"CREATE TABLE IF NOT EXISTS {tabla} ({cols_sql});"
+    # Normalizar nombres de columnas (PostgreSQL recomienda snake_case)
+    df.columns = [col.lower().replace(' ', '_').replace('ó', 'o') for col in df.columns]
+    
+    # Mapeo de tipos de pandas a PostgreSQL
+    tipo_map = {
+        'object': 'TEXT',
+        'int64': 'BIGINT',
+        'float64': 'DOUBLE PRECISION',
+        'bool': 'BOOLEAN',
+        'datetime64[ns]': 'TIMESTAMP',
+        'timedelta64[ns]': 'INTERVAL'
+    }
+    
+    # Generar SQL
+    column_defs = []
+    for col, dtype in df.dtypes.items():
+        pg_type = tipo_map.get(str(dtype), 'TEXT')
+        column_defs.append(f'"{col}" {pg_type}')
+    
+    # Crear tabla
+    sql = f'CREATE TABLE IF NOT EXISTS {tabla} ({", ".join(column_defs)})'
     db.session.execute(text(sql))
     db.session.commit()
 
-def insertar_fila(tabla, fila):
+def insertar_fila(tabla, df):
     """
-    fila: dict {columna: valor}
+    Inserta los datos del DataFrame en la tabla
     """
-    cols = ', '.join(fila.keys())
-    vals = ', '.join([f":{k}" for k in fila.keys()])
-    sql = f"INSERT INTO {tabla} ({cols}) VALUES ({vals})"
-    db.session.execute(text(sql), fila)
-    db.session.commit()
+    # Normalizar nombres como en la creación
+    df.columns = [col.lower().replace(' ', '_').replace('ó', 'o') for col in df.columns]
+    
+    # Convertir a diccionario
+    data = df.replace({np.nan: None}).to_dict('records')
+    
+    if not data:
+        return
+    
+    # Generar SQL dinámico
+    columns = ', '.join([f'"{col}"' for col in df.columns])
+    placeholders = ', '.join([f':{col}' for col in df.columns])
+    
+    sql = f'INSERT INTO {tabla} ({columns}) VALUES ({placeholders})'
+    
+    try:
+        db.session.execute(text(sql), data)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        raise e
 
 def listar_tablas():
     sql = """

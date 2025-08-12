@@ -38,31 +38,20 @@ def upload_file():
         if extension == 'csv':
             df = pd.read_csv(file)
         else:
-            df = pd.read_excel(file)
-
-        tipo_map = {
-            'object': 'TEXT',
-            'int64': 'INTEGER',
-            'float64': 'FLOAT',
-            'bool': 'BOOLEAN',
-            'datetime64[ns]': 'TIMESTAMP'
-        }
-
-        columnas = {
-            re.sub(r'\W+', '_', col): tipo_map.get(str(dtype), 'TEXT')
-            for col, dtype in df.dtypes.items()
-        }
-
-        crear_tabla_dinamica(nombre_tabla, columnas)
-
-        for _, row in df.iterrows():
-            insertar_fila(nombre_tabla, row.to_dict())
-
-        meta = MetaTabla(nombre_tabla=nombre_tabla, usuario_id=usuario_id)
-        db.session.add(meta)
-        db.session.commit()
-
-        return jsonify({"mensaje": f"Tabla {nombre_tabla} creada con éxito."})
-
+            df = pd.read_excel(file, engine='openpyxl')
+        
+        # Normalizar nombre de tabla
+        nombre_tabla = re.sub(r'[^a-zA-Z0-9]', '_', nombre_tabla).lower()
+        
+        # Procesar
+        crear_tabla_dinamica(nombre_tabla, df)
+        insertar_fila(nombre_tabla, df)
+        
+        return jsonify({
+            "mensaje": f"Tabla {nombre_tabla} creada con éxito",
+            "columnas": list(df.columns),
+            "filas_insertadas": len(df)
+        })
+    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
