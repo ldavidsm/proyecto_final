@@ -50,6 +50,13 @@ def upload_file():
             # Manejar error o tabla existente
             return jsonify({"error": msg}), 400
         insertar_fila(nombre_tabla, df)
+        meta_tabla = MetaTabla(
+            nombre_tabla=nombre_tabla,
+            usuario_id=usuario_id
+        )
+        db.session.add(meta_tabla)
+        db.session.commit()
+        
         
         return jsonify({
             "mensaje": msg,

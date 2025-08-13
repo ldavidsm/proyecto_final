@@ -35,11 +35,10 @@ def crear_tabla_dinamica(tabla, df):
         }
         
         # Generar definiciones de columnas
-        column_defs = []
+        column_defs = ['id SERIAL PRIMARY KEY']  # columna id oculta
         for col, dtype in df.dtypes.items():
             pg_type = tipo_map.get(str(dtype), 'TEXT')
             column_defs.append(f'"{col}" {pg_type}')
-        
         
         sql = f'CREATE TABLE {tabla} ({", ".join(column_defs)})'
         db.session.execute(text(sql))
@@ -50,6 +49,7 @@ def crear_tabla_dinamica(tabla, df):
     except Exception as e:
         db.session.rollback()
         return False, f"Error al crear tabla: {str(e)}"
+
 
 def insertar_fila(tabla, df):
     """

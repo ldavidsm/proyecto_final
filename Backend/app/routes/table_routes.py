@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.tablas import crear_tabla_dinamica, insertar_fila, obtener_datos, MetaTabla, db
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
+from app.decorators import obtener_datos
 
 table_bp = Blueprint('table', __name__)
 
@@ -60,40 +61,45 @@ def tablas():
 @table_bp.route('/datos/<int:tabla_id>', methods=['GET'])
 @jwt_required()
 def datos(tabla_id):
-    usuario_id = get_jwt_identity()
-    meta_tabla = MetaTabla.query.get_or_404(tabla_id)
+    usuario = get_jwt_identity()
+    usuario_id = usuario["id"] if isinstance(usuario, dict) else int(usuario)
 
+    meta_tabla = MetaTabla.query.get_or_404(tabla_id)
     if meta_tabla.usuario_id != usuario_id:
         return jsonify({"error": "No autorizado"}), 403
 
-    limit = int(request.args.get('limit', 10))
-    offset = int(request.args.get('offset', 0))
+    limit = int(request.args.get("limit", 10))
+    offset = int(request.args.get("offset", 0))
 
     try:
-        filas = obtener_datos(meta_tabla.nombre_tabla, limit, offset)
-    except ValueError as ve:
-        return jsonify({"error": str(ve)}), 400
+        filas, columnas = obtener_datos(meta_tabla.nombre_tabla, limit, offset)
+        
+        return jsonify({
+            "columnas": list(columnas),
+            "datos": filas
+        })
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-    return jsonify(filas)
-
 
 @table_bp.route('/tablas/<int:tabla_id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_tabla(tabla_id):
-    usuario_id = get_jwt_identity()
+    usuario = get_jwt_identity()
+    usuario_id = usuario["id"] if isinstance(usuario, dict) else int(usuario)
+
     meta_tabla = MetaTabla.query.get_or_404(tabla_id)
 
-    if meta_tabla.usuario_id != usuario_id:
+    # Solo el dueño o admin puede eliminar
+    if meta_tabla.usuario_id != usuario_id and usuario.get("rol") != "admin":
         return jsonify({"error": "No autorizado"}), 403
 
     try:
-        sql = f"DROP TABLE IF EXISTS {meta_tabla.nombre_tabla}"
+        sql = f'DROP TABLE IF EXISTS "{meta_tabla.nombre_tabla}"'
         db.session.execute(text(sql))
         db.session.delete(meta_tabla)
         db.session.commit()
-        return jsonify({"msg": "Tabla eliminada"})
+        return jsonify({"msg": f"Tabla '{meta_tabla.nombre_tabla}' eliminada correctamente."})
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
