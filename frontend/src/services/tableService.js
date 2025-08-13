@@ -9,9 +9,19 @@ export const getUserTables = async (token) => {
   return res.data;
 };
 
-export const getTableData = async (token, tablaId) => {
-  const res = await axios.get(`${API_URL}/datos/${tablaId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+export const getTableData = async (token, tablaId, limit = 10, offset = 0) => {
+  const res = await axios.get(
+    `${API_URL}/datos/${tablaId}?limit=${limit}&offset=${offset}`,
+    {
+      headers: { Authorization: `Bearer ${token}` }
+    }
+  );
   return res.data;
+};
+
+
+export const deleteTableById = async (tablaId, token) => {
+  return axios.delete(`${API_URL}/tablas/${tablaId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 };

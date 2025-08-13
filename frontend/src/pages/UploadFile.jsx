@@ -2,7 +2,7 @@ import { useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { uploadFile } from "../services/uploadService";
 
-export default function UploadFile() {
+export default function UploadFile({onUpload}) {
   const { token } = useContext(AuthContext);
   const [file, setFile] = useState(null);
   const [nombreTabla, setNombreTabla] = useState("");
@@ -17,6 +17,13 @@ export default function UploadFile() {
     try {
       const data = await uploadFile(token, file, nombreTabla);
       setMensaje(data.mensaje || "Archivo subido correctamente");
+
+     if (onUpload) onUpload();
+
+      // Limpiar campos
+      setFile(null);
+      setNombreTabla("");
+
     } catch (err) {
       setError(err.response?.data?.error || "Error al subir archivo");
     }
