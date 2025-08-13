@@ -2,6 +2,8 @@ from app.extensions import db
 from sqlalchemy import text
 import pandas as pd
 import numpy as np
+from app.decorators import obtener_datos
+
 
 def tabla_existe(nombre_tabla):
     """Verifica si la tabla ya existe en la base de datos (versión mejorada)"""
@@ -85,16 +87,42 @@ def listar_tablas():
     result = db.session.execute(text(sql))
     return [row[0] for row in result]
 
-def obtener_datos(tabla, limit=10, offset=0):
-    from re import match
-    if not match(r'^\w+$', tabla):
-        raise ValueError("Nombre de tabla inválido")
 
-    sql = text(f"SELECT * FROM {tabla} LIMIT :limit OFFSET :offset")
-    result = db.session.execute(sql, {'limit': limit, 'offset': offset})
-    columnas = result.keys()
-    filas = [dict(zip(columnas, row)) for row in result.fetchall()]
-    return filas
+def get_table_data_for_dashboard(table_name, item_config):
+    """Obtiene datos procesados según la configuración del item del dashboard"""
+    raw_data = obtener_datos(table_name, item_config.get('filters'))
+    
+    # Procesamiento básico según el tipo de item
+    if item_config.get('item_type') == 'kpi':
+        # Para KPIs, calculamos la métrica especificada
+        value_column = item_config.get('config', {}).get('value_column')
+        if value_column and raw_data:
+            kpi_value = calculate_kpi(raw_data, value_column, item_config.get('config', {}).get('calculation', 'sum'))
+            return {'kpi_value': kpi_value}
+    
+    return raw_data
+
+def calculate_kpi(data, value_column, calculation='sum'):
+    """Calcula un KPI a partir de los datos"""
+    try:
+        values = [float(item[value_column]) for item in data if item[value_column] is not None]
+        if not values:
+            return None
+        
+        if calculation == 'sum':
+            return sum(values)
+        elif calculation == 'avg':
+            return sum(values) / len(values)
+        elif calculation == 'max':
+            return max(values)
+        elif calculation == 'min':
+            return min(values)
+        elif calculation == 'count':
+            return len(values)
+        else:
+            return sum(values)
+    except (ValueError, KeyError):
+        return None
 
 class MetaTabla(db.Model):
     id = db.Column(db.Integer, primary_key=True)

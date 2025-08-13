@@ -8,6 +8,9 @@ from .routes.table_routes import table_bp
 from .routes.auth_routes import auth_bp 
 from .routes.admin_routes import admin_bp 
 from .routes.upload_routes import upload_bp 
+from .routes.dashboard_routes import dashboard_bp
+from .routes.scenario_routes import scenario_bp
+
 
 
 def create_app():
@@ -31,6 +34,9 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(upload_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(scenario_bp)
+
 
     
     return app
