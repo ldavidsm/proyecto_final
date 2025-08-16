@@ -16,6 +16,7 @@ export const getTableData = async (token, tablaId, limit = 10, offset = 0) => {
       headers: { Authorization: `Bearer ${token}` }
     }
   );
+  console.log("Respuesta completa del backend:", res.data); 
   return res.data;
 };
 

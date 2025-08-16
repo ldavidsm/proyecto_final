@@ -3,7 +3,7 @@ import { useState, useEffect, useContext } from "react";
 import { getUserTables } from "../services/tableService";
 import { AuthContext } from "../context/AuthContext";
 
-export default function TableList({ onSelect, onDelete, refreshTrigger }) {
+export default function TableList({ onSelect, onDelete, onGraph, refreshTrigger }) {
   const { token } = useContext(AuthContext);
   const [tables, setTables] = useState([]);
   const [error, setError] = useState(null);
@@ -30,37 +30,51 @@ export default function TableList({ onSelect, onDelete, refreshTrigger }) {
             key={t.id}
             style={{
               display: "flex",
-              justifyContent: "space-between",
               alignItems: "center",
+              justifyContent: "space-between",
               padding: "8px",
               marginBottom: "4px",
               background: "#f2f2f2",
               borderRadius: "5px",
+              cursor: "pointer",
             }}
           >
-            <div
-              onClick={() => onSelect(t.id)}
-              style={{ cursor: "pointer", flex: 1 }}
-            >
+            <div onClick={() => onSelect(t.id)}>
               <strong>{t.nombre}</strong>
               <span style={{ marginLeft: "10px", color: "gray" }}>
                 ({t.fecha_creacion})
               </span>
             </div>
+
+            <div style={{ display: "flex", gap: "5px" }}>
+              <button
+                onClick={() => onDelete(t.id, t.nombre)}
+                style={{
+                  background: "red",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                }}
+              >
+                Eliminar
+              </button>
+
+           {/* Botón Graficar - Cambio clave */}
             <button
-              onClick={() => onDelete(t.id, t.nombre)}
-              style={{
-                background: "red",
-                color: "white",
-                border: "none",
-                padding: "4px 8px",
-                borderRadius: "5px",
-                cursor: "pointer",
-                marginLeft: "10px",
+              onClick={(e) => {
+                e.stopPropagation(); // Evita que trigger onSelect
+                onGraph(t.id);
               }}
-            >
-              Eliminar
-            </button>
+              style={{
+                background: "#4CAF50", // Verde para acción positiva
+                color: "white"
+              }}
+              >
+                Graficar
+              </button>
+            </div>
           </li>
         ))}
       </ul>

@@ -4,14 +4,16 @@ import UploadFile from "./UploadFile";
 import TableList from "../components/TableList";
 import TableData from "./TableData";
 import { deleteTableById } from "../services/tableService";
+import ChartViewer from "../components/ChartViewer";
 
 export default function Dashboard() {
   const { user, token, logoutUser } = useContext(AuthContext);
   const [selectedTable, setSelectedTable] = useState(null);
+  const [showChart, setShowChart] = useState(false);
   const [refreshList, setRefreshList] = useState(false);
   const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false); // Nuevo estado para carga
 
-  // Función para eliminar tabla
   const handleDeleteTable = async (tablaId, tablaNombre) => {
     const confirmDelete = window.confirm(
       `¿Seguro que quieres eliminar la tabla "${tablaNombre}"? Esta acción no se puede deshacer.`
@@ -19,55 +21,123 @@ export default function Dashboard() {
     if (!confirmDelete) return;
 
     try {
+      setIsLoading(true);
       await deleteTableById(tablaId, token);
-      // Refrescar la lista de tablas
       setRefreshList((prev) => !prev);
-      // Si la tabla eliminada estaba seleccionada, limpiamos selección
-      if (selectedTable === tablaId) setSelectedTable(null);
+      if (selectedTable === tablaId) {
+        setSelectedTable(null);
+        setShowChart(false); // Cierra el gráfico si estaba viendo la tabla eliminada
+      }
     } catch (err) {
-      console.error(err);
       setError(err.response?.data?.error || "Error al eliminar la tabla");
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const handleGraphTable = (tableId) => {
+    setSelectedTable(tableId);
+    setShowChart(true);
+    setError(null); // Limpia errores previos
+  };
+
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Bienvenido {user?.email || "Usuario"}</h1>
-      <p>Gestiona y visualiza tus tablas en un solo lugar:</p>
+    <div style={{ padding: "20px", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+      {/* Header Section */}
+      <header style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center",
+        marginBottom: "20px"
+      }}>
+        <div>
+          <h1 style={{ margin: 0 }}>Bienvenido {user?.email || "Usuario"}</h1>
+          <p style={{ margin: "5px 0 0", color: "#666" }}>Gestiona y visualiza tus tablas</p>
+        </div>
+        <button
+          onClick={logoutUser}
+          style={{
+            background: "#ff4444",
+            color: "white",
+            padding: "8px 16px",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+            height: "fit-content"
+          }}
+        >
+          Cerrar sesión
+        </button>
+      </header>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {/* Error Display */}
+      {error && (
+        <div style={{ 
+          padding: "10px", 
+          marginBottom: "20px", 
+          background: "#ffebee", 
+          color: "#d32f2f",
+          borderRadius: "4px",
+          borderLeft: "4px solid #d32f2f"
+        }}>
+          {error}
+        </div>
+      )}
 
-      {/* Botón de logout */}
-      <button
-        onClick={logoutUser}
-        style={{
-          marginBottom: "20px",
-          background: "red",
-          color: "white",
-          padding: "8px 16px",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer",
-        }}
-      >
-        Cerrar sesión
-      </button>
-
-      {/* Zona de trabajo */}
-      <div style={{ display: "flex", gap: "20px" }}>
-        {/* Panel izquierdo: subir y lista */}
-        <div style={{ flex: 1 }}>
-          <UploadFile onUpload={() => setRefreshList(!refreshList)} />
+      {/* Main Workspace */}
+      <div style={{ 
+        display: "flex", 
+        gap: "20px",
+        minHeight: "calc(100vh - 180px)"
+      }}>
+        {/* Left Panel - Upload and List */}
+        <div style={{ 
+          flex: 1, 
+          minWidth: "300px",
+          background: "white",
+          padding: "20px",
+          borderRadius: "8px",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+        }}>
+          <UploadFile 
+            onUpload={() => {
+              setRefreshList(!refreshList);
+              setSelectedTable(null); // Reset selection on new upload
+            }} 
+          />
           <TableList
-            onSelect={(id) => setSelectedTable(id)}
-            onDelete={handleDeleteTable}  // <-- aquí pasamos la función
+            onSelect={(id) => {
+              setSelectedTable(id);
+              setShowChart(false);
+            }}
+            onDelete={handleDeleteTable}
+            onGraph={handleGraphTable}
             refreshTrigger={refreshList}
+            isLoading={isLoading}
           />
         </div>
 
-        {/* Panel derecho: datos */}
-        <div style={{ flex: 2 }}>
-          <TableData tableId={selectedTable} />
+        {/* Right Panel - Data Display */}
+        <div style={{ 
+          flex: 3,
+          background: "white",
+          padding: "20px",
+          borderRadius: "8px",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+        }}>
+          {showChart ? (
+            <ChartViewer
+              tableId={selectedTable}
+              onClose={() => setShowChart(false)}
+              token={token} // Pasa el token directamente
+            />
+          ) : (
+            <TableData 
+              tableId={selectedTable} 
+              onGraphRequest={() => selectedTable && handleGraphTable(selectedTable)}
+              token={token}
+            />
+          )}
         </div>
       </div>
     </div>
