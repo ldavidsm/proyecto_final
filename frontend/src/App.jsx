@@ -6,6 +6,7 @@ import PrivateRoute from "./pages/PrivateRoute";
 import UploadFile from "./pages/UploadFile";
 import MyTables from "./pages/MyTables";
 import TableData from "./pages/TableData";
+import DashboardSPA from './pages/DashboardSPA';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/subir" element={<PrivateRoute><UploadFile/> </PrivateRoute>}/>
         <Route path="/tablas" element={<PrivateRoute><MyTables/> </PrivateRoute>}/>
         <Route path="/tablas:id" element={<PrivateRoute><TableData/> </PrivateRoute>}/>
+        <Route path="/mis_dashboard" element={<PrivateRoute><DashboardSPA /></PrivateRoute>} />
       </Routes>
     </Router>
   );
