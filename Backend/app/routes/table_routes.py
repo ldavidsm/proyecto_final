@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import re
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.tablas import crear_tabla_dinamica, insertar_fila, obtener_datos, MetaTabla, db
@@ -58,9 +59,10 @@ def tablas():
         return jsonify({"error": str(e)}), 500
 
 
-@table_bp.route('/datos/<int:tabla_id>', methods=['GET'])
+@table_bp.route('/datos/<int:tabla_id>', methods=['GET',])
 @jwt_required()
 def datos(tabla_id):
+
     usuario = get_jwt_identity()
     usuario_id = usuario["id"] if isinstance(usuario, dict) else int(usuario)
 
@@ -122,21 +124,26 @@ def insertar_fila_tabla(tabla_id):
         return jsonify({"error": str(e)}), 500
     
 
-@table_bp.route('/graficar/<tabla>', methods=['GET'])
+@table_bp.route('/graficar/<int:tabla_id>', methods=['GET', 'OPTIONS'])
 @jwt_required()
-def graficar(tabla):
+def graficar(tabla_id):
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+
     usuario_id = get_jwt_identity()
     tipo = request.args.get('tipo')
     x = request.args.get('x')
     y = request.args.get('y')
 
     # Verificar que la tabla pertenece al usuario
-    meta = MetaTabla.query.filter_by(nombre_tabla=tabla, usuario_id=usuario_id).first()
+    meta = MetaTabla.query.filter_by(id=tabla_id, usuario_id=usuario_id).first()
     if not meta:
         return jsonify({"error": "Tabla no encontrada o no pertenece al usuario"}), 403
+    tabla = meta.nombre_tabla
 
     try:
-        df = pd.read_sql(f"SELECT * FROM {tabla}", db.session.bind)
+        # Usar db.engine en vez de db.session.bind para evitar NoneType
+        df = pd.read_sql(text(f"SELECT * FROM {tabla}"), db.engine)
 
         if tipo == 'pastel':
             if not x:
@@ -193,4 +200,4 @@ def graficar(tabla):
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Error al generar gráfico: {str(e)}"}), 500

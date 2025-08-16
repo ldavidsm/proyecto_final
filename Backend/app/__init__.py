@@ -16,9 +16,14 @@ from .routes.scenario_routes import scenario_bp
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config) 
-    CORS(app)
-    
-    
+    CORS(app, resources={
+        r"/*": {
+            "origins": ["http://localhost:3000"],  # Asegúrate que coincide con tu frontend
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True  # Necesario para cookies/tokens
+        }
+    })
 
     jwt = JWTManager(app)
     db.init_app(app) 
