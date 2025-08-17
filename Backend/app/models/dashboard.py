@@ -29,19 +29,18 @@ class Dashboard(db.Model):
 
     def to_dict(self, with_items=True):
         data = {
-            'id': self.id,
-            'title': self.title,
-            'description': self.description,
-            'user_id': self.user_id,
-            'theme': self.theme,
-            'is_public': self.is_public,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "user_id": self.user_id,
+            "theme": self.theme,
+            "is_public": self.is_public,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
         if with_items:
-            data['items'] = [i.to_dict() for i in self.items]
+            data["items"] = [item.to_dict() for item in self.items]
         return data
-
 
 class DashboardItem(db.Model):
     __tablename__ = 'dashboard_items'
@@ -49,8 +48,8 @@ class DashboardItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     dashboard_id = db.Column(db.Integer, db.ForeignKey('dashboards.id'), nullable=False)
 
-    # optional link to a data table / dataset in your system
-    table_id = db.Column(db.Integer, db.ForeignKey('tablas.id'), nullable=True)
+    # En vez de FK hacia "tablas", guardamos el nombre directamente
+    table_name = db.Column(db.String(255), nullable=True)
 
     item_type = db.Column(db.String(50), nullable=False)  # 'chart' | 'kpi' | 'table' | 'text'
     chart_type = db.Column(db.String(50), nullable=True)  # 'bar' | 'line' | 'pie' | ...
@@ -61,26 +60,25 @@ class DashboardItem(db.Model):
     width = db.Column(db.Integer, default=4)
     height = db.Column(db.Integer, default=3)
 
-    # JSON configuration for the widget
+    # JSON configuration for el widget
     config = db.Column(db.JSON, default=dict)
     filters = db.Column(db.JSON, default=dict)
 
-    refresh_interval = db.Column(db.Integer, nullable=True)  # seconds
+    refresh_interval = db.Column(db.Integer, nullable=True)  # segundos
     last_refresh = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'dashboard_id': self.dashboard_id,
-            'table_id': self.table_id,
-            'item_type': self.item_type,
-            'chart_type': self.chart_type,
-            'position_x': self.position_x,
-            'position_y': self.position_y,
-            'width': self.width,
-            'height': self.height,
-            'config': self.config or {},
-            'filters': self.filters or {},
-            'refresh_interval': self.refresh_interval,
-            'last_refresh': self.last_refresh.isoformat() if self.last_refresh else None
+            "id": self.id,
+            "dashboard_id": self.dashboard_id,
+            "item_type": self.item_type,
+            "chart_type": self.chart_type,
+            "position_x": self.position_x,
+            "position_y": self.position_y,
+            "width": self.width,
+            "height": self.height,
+            "config": self.config,
+            "filters": self.filters,
+            "refresh_interval": self.refresh_interval,
+            "last_refresh": self.last_refresh.isoformat() if self.last_refresh else None
         }

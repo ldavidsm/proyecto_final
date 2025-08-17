@@ -91,16 +91,20 @@ def listar_tablas():
 def get_table_data_for_dashboard(table_name, item_config):
     """Obtiene datos procesados según la configuración del item del dashboard"""
     raw_data = obtener_datos(table_name, item_config.get('filters'))
-    
+
     # Procesamiento básico según el tipo de item
     if item_config.get('item_type') == 'kpi':
-        # Para KPIs, calculamos la métrica especificada
         value_column = item_config.get('config', {}).get('value_column')
         if value_column and raw_data:
-            kpi_value = calculate_kpi(raw_data, value_column, item_config.get('config', {}).get('calculation', 'sum'))
+            kpi_value = calculate_kpi(
+                raw_data,
+                value_column,
+                item_config.get('config', {}).get('calculation', 'sum')
+            )
             return {'kpi_value': kpi_value}
-    
+
     return raw_data
+
 
 def calculate_kpi(data, value_column, calculation='sum'):
     """Calcula un KPI a partir de los datos"""

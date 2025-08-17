@@ -15,7 +15,7 @@ def owned_or_public(dash: Dashboard, user_id: int):
 @dashboard_bp.route('/dashboards', methods=['GET'])
 @jwt_required()
 def list_dashboards():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     q = Dashboard.query.filter((Dashboard.user_id == user_id) | (Dashboard.is_public == True)).order_by(Dashboard.updated_at.desc())
     return jsonify([d.to_dict(with_items=False) for d in q.all()])
 
@@ -41,16 +41,16 @@ def create_dashboard():
 @dashboard_bp.route('/dashboards/<int:dash_id>', methods=['GET'])
 @jwt_required()
 def get_dashboard(dash_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     dash = Dashboard.query.get_or_404(dash_id)
     if not owned_or_public(dash, user_id):
         return jsonify({'error': 'not authorized'}), 403
-    return jsonify(dash.to_dict())
+    return jsonify(dash.to_dict(with_items=True))
 
 @dashboard_bp.route('/dashboards/<int:dash_id>', methods=['PUT'])
 @jwt_required()
 def update_dashboard(dash_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     dash = Dashboard.query.get_or_404(dash_id)
     if dash.user_id != user_id:
         return jsonify({'error': 'not authorized'}), 403
@@ -65,7 +65,7 @@ def update_dashboard(dash_id):
 @dashboard_bp.route('/dashboards/<int:dash_id>', methods=['DELETE'])
 @jwt_required()
 def delete_dashboard(dash_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     dash = Dashboard.query.get_or_404(dash_id)
     if dash.user_id != user_id:
         return jsonify({'error': 'not authorized'}), 403
@@ -78,7 +78,7 @@ def delete_dashboard(dash_id):
 @dashboard_bp.route('/dashboards/<int:dash_id>/items', methods=['POST'])
 @jwt_required()
 def add_item(dash_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     dash = Dashboard.query.get_or_404(dash_id)
     if dash.user_id != user_id:
         return jsonify({'error': 'not authorized'}), 403
@@ -86,7 +86,6 @@ def add_item(dash_id):
     data = request.get_json() or {}
     item = DashboardItem(
         dashboard_id=dash.id,
-        table_id=data.get('table_id'),
         item_type=data.get('item_type', 'chart'),
         chart_type=data.get('chart_type'),
         position_x=int(data.get('position_x', 0)),
@@ -104,7 +103,7 @@ def add_item(dash_id):
 @dashboard_bp.route('/dashboards/<int:dash_id>/items/<int:item_id>', methods=['PUT'])
 @jwt_required()
 def update_item(dash_id, item_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     dash = Dashboard.query.get_or_404(dash_id)
     if dash.user_id != user_id:
         return jsonify({'error': 'not authorized'}), 403
@@ -112,7 +111,7 @@ def update_item(dash_id, item_id):
     item = DashboardItem.query.filter_by(id=item_id, dashboard_id=dash_id).first_or_404()
     data = request.get_json() or {}
 
-    for field in ['table_id','item_type','chart_type','position_x','position_y','width','height','refresh_interval']:
+    for field in ['item_type','chart_type','position_x','position_y','width','height','refresh_interval']:
         if field in data and data[field] is not None:
             setattr(item, field, data[field])
 
@@ -127,7 +126,7 @@ def update_item(dash_id, item_id):
 @dashboard_bp.route('/dashboards/<int:dash_id>/items/<int:item_id>', methods=['DELETE'])
 @jwt_required()
 def delete_item(dash_id, item_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     dash = Dashboard.query.get_or_404(dash_id)
     if dash.user_id != user_id:
         return jsonify({'error': 'not authorized'}), 403
