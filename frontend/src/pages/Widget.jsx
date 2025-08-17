@@ -22,7 +22,7 @@ export default function Widget({ item, onRemove, onUpdate }) {
   return (
     <Card
       size="small"
-      title={item.config?.title || "Widget"}
+      title={<div className="widget-drag-handle">{item.config?.title || "Widget"}</div>}
       extra={
         <>
           <Button

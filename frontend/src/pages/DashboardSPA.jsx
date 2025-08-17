@@ -106,23 +106,24 @@ export default function DashboardSPA() {
     }
   };
 
-  const createNewDashboard = async () => {
-    if (!newTitle.trim()) return message.warning("Ponle un título");
-    try {
-      const d = await createDashboard(
-        { title: newTitle.trim(), description: newDesc },
-        token
-      );
-      setCreatingOpen(false);
-      setNewTitle("");
-      setNewDesc("");
-      await refreshList();
-      setActiveId(d.id);
-    } catch (e) {
-      message.error(e.message);
-    }
-  };
+const createNewDashboard = async () => {
+  if (!newTitle.trim()) return message.warning("Ponle un título");
+  try {
+    const d = await createDashboard(
+      { title: newTitle.trim(), description: newDesc },
+      token
+    );
+    setCreatingOpen(false);
+    setNewTitle("");
+    setNewDesc("");
 
+    // añadir el nuevo al estado sin recargar
+    setDashboards((prev) => [d, ...prev]); 
+    setActiveId(d.id);
+  } catch (e) {
+    message.error(e.message);
+  }
+};
   const addNewItem = async () => {
     try {
       await addItem(
@@ -232,6 +233,7 @@ export default function DashboardSPA() {
             onLayoutChange={onLayoutChange}
             isResizable
             isDraggable
+            draggableHandle=".widget-drag-handle"
           >
             {(active.items || []).map((item) => (
               <div
