@@ -36,7 +36,7 @@ export const WidgetEditor = ({ visible, widget, onSave, onCancel }) => {
   return (
     <Modal
       title={`Editar Widget: ${widget?.item_type}`}
-      visible={visible}
+      open={visible}
       onOk={handleSubmit}
       onCancel={onCancel}
       footer={[

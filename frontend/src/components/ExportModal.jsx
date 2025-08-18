@@ -8,7 +8,7 @@ export const ExportModal = ({ visible, onExport, onCancel }) => {
   return (
     <Modal
       title="Exportar Dashboard"
-      visible={visible}
+      open={visible}
       onCancel={onCancel}
       footer={[
         <Button key="cancel" onClick={onCancel}>

@@ -84,3 +84,16 @@ export async function deleteItem(dashId, itemId, token) {
     throw handleError(err);
   }
 }
+export async function getItemData(dashId, itemId, token) {
+  try {
+    const res = await axios.get(
+      `${API_URL}/dashboards/${dashId}/items/${itemId}/data`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    return res.data;
+  } catch (err) {
+    throw handleError(err);
+  }
+}

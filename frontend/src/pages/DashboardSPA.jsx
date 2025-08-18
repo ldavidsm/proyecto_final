@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useContext } from "react";
 import { Button, Card, Divider, Input, Modal, Select, Space, Typography, message } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { Responsive, WidthProvider } from "react-grid-layout";
-
+import { getUserTables } from "../services/tableService";
 import { AuthContext } from "../context/AuthContext";
 import {
   listDashboards,
@@ -34,6 +34,10 @@ export default function DashboardSPA() {
   const [newItemType, setNewItemType] = useState("chart");
   const [newChartType, setNewChartType] = useState("bar");
 
+
+  const [tables, setTables] = useState([]);
+  const [selectedTable, setSelectedTable] = useState(null);
+
   async function refreshList() {
     try {
       const data = await listDashboards(token);
@@ -54,6 +58,17 @@ export default function DashboardSPA() {
       message.error(e.message);
     }
   }
+
+  useEffect(() => {
+  async function fetchTables() {
+    try {
+      const data = await getUserTables(token);
+      setTables(data);
+    } catch (err) {
+      message.error("Error cargando tablas");
+    }}
+  if (token) fetchTables();
+}, [token]);
 
   useEffect(() => {
     if (token) refreshList();
@@ -124,28 +139,31 @@ const createNewDashboard = async () => {
     message.error(e.message);
   }
 };
-  const addNewItem = async () => {
-    try {
-      await addItem(
-        active.id,
-        {
-          item_type: newItemType,
-          chart_type: newItemType === "chart" ? newChartType : null,
-          position_x: 0,
-          position_y: (active.items?.length || 0) * 2,
-          width: 4,
-          height: 3,
-          config: { title: `${newItemType} demo` },
-        },
-        token
-      );
-      setAddingOpen(false);
-      await loadActive(active.id);
-    } catch (e) {
-      message.error(e.message);
-    }
-  };
-
+const addNewItem = async () => {
+  if (!selectedTable) {
+    return message.warning("Selecciona una tabla");
+  }
+  try {
+    await addItem(
+      active.id,
+      {
+        item_type: newItemType,
+        chart_type: newItemType === "chart" ? newChartType : null,
+        table_name: selectedTable,   
+        position_x: 0,
+        position_y: (active.items?.length || 0) * 2,
+        width: 4,
+        height: 3,
+        config: { title: `${newItemType} demo` },
+      },
+      token
+    );
+    setAddingOpen(false);
+    await loadActive(active.id);
+  } catch (e) {
+    message.error(e.message);
+  }
+};
   const removeItem = async (itemId) => {
     try {
       await deleteItem(active.id, itemId, token);
@@ -246,7 +264,7 @@ const createNewDashboard = async () => {
                   h: item.height,
                 }}
               >
-                <Widget item={item} onRemove={removeItem} />
+                <Widget item={item} dashboardId={active.id} onRemove={removeItem} />
               </div>
             ))}
           </ResponsiveGridLayout>
@@ -283,6 +301,12 @@ const createNewDashboard = async () => {
         okText="Agregar"
       >
         <Space direction="vertical" style={{ width: "100%" }}>
+            <Select
+              placeholder="Selecciona tabla"
+              value={selectedTable}
+              onChange={setSelectedTable}
+              options={tables.map(t => ({ value: t.nombre, label: t.nombre }))}
+            />
           <Select
             value={newItemType}
             onChange={setNewItemType}
