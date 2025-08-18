@@ -72,6 +72,7 @@ class DashboardItem(db.Model):
             "id": self.id,
             "dashboard_id": self.dashboard_id,
             "item_type": self.item_type,
+            "table_name": self.table_name, 
             "chart_type": self.chart_type,
             "position_x": self.position_x,
             "position_y": self.position_y,
