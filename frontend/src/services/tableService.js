@@ -25,3 +25,12 @@ export const deleteTableById = async (tablaId, token) => {
     headers: { Authorization: `Bearer ${token}` },
   });
 };
+
+export const getTableColumns = async (tablaId, token) => {
+  const res = await axios.get(`${API_URL}/datos/${tablaId}?limit=1`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+  return res.data.columnas; 
+};

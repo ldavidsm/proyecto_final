@@ -85,15 +85,23 @@ export async function deleteItem(dashId, itemId, token) {
   }
 }
 export async function getItemData(dashId, itemId, token) {
+  console.log("🔑 token que uso:", token);
   try {
     const res = await axios.get(
-      `${API_URL}/dashboards/${dashId}/items/${itemId}/data`,
-      {
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    );
+      `${API_URL}/dashboards/${dashId}/items/${itemId}/data`,{ headers: authHeader(token) });
     return res.data;
   } catch (err) {
     throw handleError(err);
+  }
+}
+
+export async function getValidColumns(tablaId, chartType, token) {
+  try {
+    const res = await axios.get(
+      `${API_URL}/dashboards/${tablaId}/valid-columns?chart_type=${chartType}`,{ headers: authHeader(token) });
+    return res.data; // { x: [...], y: [...] }
+  } catch (err) {
+    console.error("Error cargando columnas válidas:", err);
+    throw err;
   }
 }
