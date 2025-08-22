@@ -2,9 +2,11 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import text, func, Table
+from sqlalchemy import text, func, Table, Integer, Float, Numeric, String, Date, DateTime
 from app import db
 from app.models.dashboard import Dashboard, DashboardItem
+from app.models.tablas import MetaTabla
+
 
 dashboard_bp = Blueprint('dashboard_bp', __name__)
 
@@ -84,9 +86,18 @@ def add_item(dash_id):
         return jsonify({'error': 'not authorized'}), 403
 
     data = request.get_json() or {}
+    table_id = data.get("table_id")
+
+    if not table_id:
+        return jsonify({"error": "table_id es requerido"}), 400
+
+    
+    if not MetaTabla.query.get(table_id):
+        return jsonify({"error": f"No existe MetaTabla con id {table_id}"}), 400
+
     item = DashboardItem(
         dashboard_id=dash.id,
-         table_name=data.get("table_name"), 
+        table_id=table_id,
         item_type=data.get('item_type', 'chart'),
         chart_type=data.get('chart_type'),
         position_x=int(data.get('position_x', 0)),
@@ -139,95 +150,167 @@ def delete_item(dash_id, item_id):
 
 
 
+
 @dashboard_bp.route("/dashboards/<int:dash_id>/items/<int:item_id>/data", methods=["GET"])
+@jwt_required()
 def get_item_data(dash_id, item_id):
-    item = DashboardItem.query.filter_by(
-        id=item_id, dashboard_id=dash_id
-    ).first_or_404()
+    item = DashboardItem.query.get_or_404(item_id)
+    usuario = get_jwt_identity()
+    usuario_id = usuario["id"] if isinstance(usuario, dict) else int(usuario)
 
-    table_name = item.table_name
+    meta_tabla = MetaTabla.query.get_or_404(item.table_id)
+    if meta_tabla.usuario_id != usuario_id:
+        return jsonify({"error": "No autorizado"}), 403
+
+    table = db.Model.metadata.tables.get(meta_tabla.nombre_tabla)
+    if table is None:
+        return jsonify({"error": "Tabla no encontrada"}), 404
+
     config = item.config or {}
-    filters = item.filters or {}
+    item_type = item.item_type
 
-    # Intentar obtener/reflejar la tabla dinámica
-    table = db.Model.metadata.tables.get(table_name)
-    if not table:
-        try:
-            table = Table(table_name, db.Model.metadata, autoload_with=db.engine)
-        except Exception:
-            return jsonify({"error": f"Tabla {table_name} no encontrada en BD"}), 400
+    # --- CHART (bar, line, pie) ---
+    if item_type == "chart":
+        x_name = config.get("x") or config.get("x_axis")
+        y_name = config.get("y") or config.get("y_axis")
+        agg_func = (config.get("agg") or config.get("aggregation") or "SUM").upper() 
 
-    # --- Construcción de query según tipo ---
-    if item.item_type == "chart":
-        x_field = config.get("x_axis")
-        y_field = config.get("y_axis")
-        agg = config.get("aggregation", "SUM")
+        if not x_name or not y_name:
+            return jsonify({"error": "Faltan columnas x/y"}), 400
 
-        if not x_field or not y_field:
-            return jsonify({"error": "Faltan ejes en config"}), 400
-
-        x_col = table.c.get(x_field)
-        y_col = table.c.get(y_field)
-        if not x_col or not y_col:
+        x_col = table.c.get(x_name)
+        y_col = table.c.get(y_name)
+        if x_col is None or y_col is None:
             return jsonify({"error": "Columnas inválidas"}), 400
 
-        if agg == "SUM":
-            agg_expr = func.sum(y_col).label("value")
-        elif agg == "COUNT":
-            agg_expr = func.count(y_col).label("value")
-        elif agg == "AVG":
-            agg_expr = func.avg(y_col).label("value")
+        agg_map = {
+            "SUM": func.sum,
+            "AVG": func.avg,
+            "COUNT": func.count,
+            "MAX": func.max,
+            "MIN": func.min,
+        }
+        agg_func_callable = agg_map.get(agg_func, func.sum)
+
+        if isinstance(y_col.type, (Integer, Float, Numeric)):
+            agg = agg_func_callable(y_col)
         else:
-            return jsonify({"error": f"Agregación {agg} no soportada"}), 400
+            if agg_func in ("SUM", "AVG"):
+                agg = func.count(y_col)
+            else:
+                agg = agg_func_callable(y_col)
 
-        query = db.session.query(x_col.label("label"), agg_expr).select_from(table)
-
-        # Filtros
-        for f_name, f_val in filters.items():
-            if f_name in table.c and f_val:
-                query = query.filter(table.c[f_name] == f_val)
-
-        query = query.group_by(x_col)
+        query = db.session.query(x_col.label("label"), agg.label("value")).group_by(x_col)
         rows = query.all()
-        data = [{"label": r.label, "value": r.value} for r in rows]
+        return jsonify([{"label": r.label, "value": r.value} for r in rows])
 
-    elif item.item_type == "table":
-        query = db.session.query(table).limit(50)
+    # --- KPI ---
+    elif item_type == "kpi":
+        col_name = config.get("column")
+        agg_func = (config.get("agg") or "SUM").upper()
+        if not col_name:
+            return jsonify({"error": "Falta columna KPI"}), 400
 
-        for f_name, f_val in filters.items():
-            if f_name in table.c and f_val:
-                query = query.filter(table.c[f_name] == f_val)
+        col = table.c.get(col_name)
+        if col is None:
+            return jsonify({"error": "Columna inválida"}), 400
 
-        rows = query.all()
-        data = [dict(r._mapping) for r in rows]
+        agg_map = {
+            "SUM": func.sum,
+            "AVG": func.avg,
+            "COUNT": func.count,
+            "MAX": func.max,
+            "MIN": func.min,
+        }
+        agg_func_callable = agg_map.get(agg_func, func.sum)
 
-    elif item.item_type == "kpi":
-        metric = config.get("metric")
-        agg = config.get("aggregation", "SUM")
+        value = db.session.query(agg_func_callable(col)).scalar()
+        return jsonify({"value": value})
 
-        col = table.c.get(metric)
-        if not col:
-            return jsonify({"error": "Métrica no válida"}), 400
+    # --- TABLE ---
+    elif item_type == "table":
+        cols = config.get("columns", [])
+        if cols is None:
+            return jsonify({"error": "Faltan columnas para tabla"}), 400
 
-        if agg == "SUM":
-            agg_expr = func.sum(col)
-        elif agg == "COUNT":
-            agg_expr = func.count(col)
-        elif agg == "AVG":
-            agg_expr = func.avg(col)
+        selected = [table.c[c] for c in cols if c in table.c]
+        if not selected:
+            return jsonify({"error": "Columnas inválidas"}), 400
+
+        rows = db.session.query(*selected).limit(100).all()
+        result = [dict(zip(cols, r)) for r in rows]
+        return jsonify(result)
+
+    # --- TEXTO ---
+    elif item_type == "text":
+        return jsonify({"text": config.get("text", "")})
+
+    return jsonify({"error": f"Tipo de item '{item_type}' no soportado"}), 400
+
+
+@dashboard_bp.route("/dashboards/<int:tabla_id>/valid-columns", methods=["GET"])
+@jwt_required()
+def get_valid_columns(tabla_id):
+    """Devuelve columnas válidas según el tipo de gráfico pedido"""
+    usuario = get_jwt_identity()
+    usuario_id = usuario["id"] if isinstance(usuario, dict) else int(usuario)
+
+    meta_tabla = MetaTabla.query.get_or_404(tabla_id)
+    if meta_tabla.usuario_id != usuario_id:
+        return jsonify({"error": "No autorizado"}), 403
+
+    # 🚀 Autoload de la tabla para tener columnas reales
+    table = Table(meta_tabla.nombre_tabla, db.metadata, autoload_with=db.engine)
+    if table is None:
+        return jsonify({"error": "Tabla no encontrada"}), 404
+
+    chart_type = request.args.get("chart_type")
+    if not chart_type:
+        return jsonify({"error": "chart_type requerido"}), 400
+
+    columnas = {}
+    for col_name, col in table.c.items():
+        col_type = type(col.type).__name__.lower()
+
+
+        if any(t in col_type for t in ["int", "float", "numeric", "double", "decimal"]):
+            col_category = "numeric"
+        elif any(t in col_type for t in ["date", "time", "timestamp"]):
+            col_category = "temporal"
+        elif any(t in col_type for t in ["string", "text", "char"]):
+            normalized = col_name.lower().replace("_", "").replace(" ", "")
+            if any(pal in normalized for pal in ["fecha", "date", "time", "created", "updated"]):
+                col_category = "temporal"
+            else:
+                col_category = "categorical"
         else:
-            return jsonify({"error": f"Agregación {agg} no soportada"}), 400
+            col_category = "other"
 
-        query = db.session.query(agg_expr).select_from(table)
+        print(f"DEBUG {col_name}: {col_type} → {col_category}")
 
-        for f_name, f_val in filters.items():
-            if f_name in table.c and f_val:
-                query = query.filter(table.c[f_name] == f_val)
+        columnas[col_name] = col_category
 
-        value = query.scalar()
-        data = {"value": value}
-
+    # Filtrar columnas según gráfico
+    if chart_type == "bar":
+        valid = {
+            "x": [c for c, t in columnas.items() if t in ("categorical", "temporal")],
+            "y": [c for c, t in columnas.items() if t == "numeric"]
+        }
+    elif chart_type == "line":
+        valid = {
+            "x": [c for c, t in columnas.items() if t == "temporal"],
+            "y": [c for c, t in columnas.items() if t == "numeric"]
+        }
+    elif chart_type == "pie":
+        valid = {
+            "label": [c for c, t in columnas.items() if t in ("categorical", "temporal")],
+            "value": [c for c, t in columnas.items() if t == "numeric"]
+        }
+    elif chart_type == "kpi":
+        valid = {
+            "value": [c for c, t in columnas.items() if t == "numeric"]
+        }
     else:
-        data = {"error": "Tipo de item no soportado"}
+        return jsonify({"error": f"chart_type {chart_type} no soportado"}), 400
 
-    return jsonify({"data": data})
+    return jsonify(valid)

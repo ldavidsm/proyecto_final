@@ -48,23 +48,20 @@ class DashboardItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     dashboard_id = db.Column(db.Integer, db.ForeignKey('dashboards.id'), nullable=False)
 
-    # En vez de FK hacia "tablas", guardamos el nombre directamente
-    table_name = db.Column(db.String(255), nullable=True)
+   
+    table_id = db.Column(db.Integer, db.ForeignKey('meta_tabla.id'), nullable=False)
+    item_type = db.Column(db.String(50), nullable=False)  
+    chart_type = db.Column(db.String(50), nullable=True)  
 
-    item_type = db.Column(db.String(50), nullable=False)  # 'chart' | 'kpi' | 'table' | 'text'
-    chart_type = db.Column(db.String(50), nullable=True)  # 'bar' | 'line' | 'pie' | ...
-
-    # grid layout (react-grid-layout)
     position_x = db.Column(db.Integer, default=0)
     position_y = db.Column(db.Integer, default=0)
     width = db.Column(db.Integer, default=4)
     height = db.Column(db.Integer, default=3)
 
-    # JSON configuration for el widget
     config = db.Column(db.JSON, default=dict)
     filters = db.Column(db.JSON, default=dict)
 
-    refresh_interval = db.Column(db.Integer, nullable=True)  # segundos
+    refresh_interval = db.Column(db.Integer, nullable=True)  
     last_refresh = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self):
@@ -72,7 +69,7 @@ class DashboardItem(db.Model):
             "id": self.id,
             "dashboard_id": self.dashboard_id,
             "item_type": self.item_type,
-            "table_name": self.table_name, 
+            "table_id": self.table_id, 
             "chart_type": self.chart_type,
             "position_x": self.position_x,
             "position_y": self.position_y,
@@ -83,3 +80,4 @@ class DashboardItem(db.Model):
             "refresh_interval": self.refresh_interval,
             "last_refresh": self.last_refresh.isoformat() if self.last_refresh else None
         }
+    meta_tabla = db.relationship("MetaTabla")  
