@@ -21,9 +21,11 @@ def create_app():
     app,
     resources={r"/*": {"origins": "http://localhost:3000"}},
     supports_credentials=True,
+    automatic_options=True ,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"]
-    )
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Content-Disposition"]  
+)
 
 
     jwt = JWTManager(app)

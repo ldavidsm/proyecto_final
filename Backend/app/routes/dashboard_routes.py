@@ -123,17 +123,24 @@ def update_item(dash_id, item_id):
     item = DashboardItem.query.filter_by(id=item_id, dashboard_id=dash_id).first_or_404()
     data = request.get_json() or {}
 
+    # actualizar campos simples
     for field in ['item_type','chart_type','position_x','position_y','width','height','refresh_interval']:
         if field in data and data[field] is not None:
             setattr(item, field, data[field])
 
+    # 🟢 merge de config
+    current_config = item.config or {}
     if 'config' in data and isinstance(data['config'], dict):
-        item.config = data['config']
+        current_config.update(data['config'])
+    item.config = current_config
+
+    # actualizar filtros
     if 'filters' in data and isinstance(data['filters'], dict):
         item.filters = data['filters']
 
     db.session.commit()
     return jsonify(item.to_dict())
+
 
 @dashboard_bp.route('/dashboards/<int:dash_id>/items/<int:item_id>', methods=['DELETE'])
 @jwt_required()
