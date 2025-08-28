@@ -27,16 +27,10 @@ const ColumnSelector = ({
         const cols = await getValidColumns(tablaId, chartType, token);
         console.log("Respuesta backend:", cols);
 
-        // 🔑 Adaptar la respuesta del backend a lo que espera este componente
-        const adapted = {
-          x: cols.columns || [],
-          y: cols.columns || [],
-          label: cols.columns || [],
-          value: cols.columns || [],
-        };
-
-        setColumns(adapted);
-      } catch {
+        // 🔑 Guardamos directamente lo que devuelve el backend
+        setColumns(cols || {});
+      } catch (err) {
+        console.error("Error cargando columnas:", err);
         setColumns({});
       } finally {
         setLoading(false);
@@ -46,7 +40,8 @@ const ColumnSelector = ({
   }, [tablaId, chartType, token]);
 
   if (loading) return <Spin />;
-  if (!columns || Object.keys(columns).length === 0) return <Empty description="Sin columnas válidas" />;
+  if (!columns || Object.keys(columns).length === 0)
+    return <Empty description="Sin columnas válidas" />;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

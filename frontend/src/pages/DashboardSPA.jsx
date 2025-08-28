@@ -277,6 +277,23 @@ export default function DashboardSPA() {
       message.error(e.message);
     }
   };
+const handleWidget = async (updatedWidget) => {
+  try {
+    await updateItem(
+      active.id,         // id del dashboard
+      updatedWidget.id,  // id del widget
+      updatedWidget,     // payload con config nueva
+      token
+    );
+
+    // Recargar el dashboard para que active.items se refresque
+    await loadActive(active.id);
+
+  } catch (err) {
+    console.error("❌ Error actualizando widget:", err);
+    message.error("Error al actualizar widget");
+  }
+};
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 16, padding: 16 }}>

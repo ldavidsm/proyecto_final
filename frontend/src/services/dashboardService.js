@@ -23,6 +23,8 @@ export async function listDashboards(token) {
 }
 
 export async function createDashboard(payload, token) {
+  console.log("🔑 TOKEN:", token);
+
   try {
     const res = await axios.post(`${API_URL}/dashboards`, payload, { headers: authHeader(token) });
     return res.data;

@@ -12,18 +12,23 @@ import { getItemData } from "../services/dashboardService";
 import { WidgetEditor } from "../components/WidgetEditor";
 import { ExportModal } from "../components/ExportModal";
 
-export default function Widget({ item, dashboardId, onRemove, onUpdate }) {
+export default function Widget({ item: initialItem, dashboardId, onRemove, onUpdate }) {
   const { token } = useContext(AuthContext);
+  const [item, setItem] = useState(initialItem);
   const [editing, setEditing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [data, setData] = useState([]); // siempre un array inicialmente
   const [loading, setLoading] = useState(false);
 
   const handleSave = async (updated) => {
-    if (onUpdate) await onUpdate(updated);
+    if (onUpdate) {
+      const saved = await onUpdate(updated); // espera la respuesta del padre
+      setItem(saved || updated); // 🔥 actualizamos el estado local
+    } else {
+      setItem(updated);
+    }
     setEditing(false);
   };
-
   const handleExport = (format) => {
     console.log(`Exportando widget ${item.id} a formato ${format}`);
     setExporting(false);

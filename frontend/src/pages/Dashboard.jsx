@@ -5,17 +5,26 @@ import TableList from "../components/TableList";
 import TableData from "./TableData";
 import { deleteTableById } from "../services/tableService";
 import ChartViewer from "../components/ChartViewer";
-import DashboardSPA from "./DashboardSPA"; // <-- Importa la vista de dashboards
+import DashboardSPA from "./DashboardSPA"; 
+import ScenarioList from "./ScenarioList";
+import ScenarioDetail from "./ScenarioDetail";
 
 export default function Dashboard() {
   const { user, token, logoutUser } = useContext(AuthContext);
+
+  // Estados para tablas
   const [selectedTable, setSelectedTable] = useState(null);
   const [showChart, setShowChart] = useState(false);
   const [refreshList, setRefreshList] = useState(false);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [showDashboards, setShowDashboards] = useState(false); // Estado para alternar vista
 
+  // Estados para dashboards y escenarios
+  const [showDashboards, setShowDashboards] = useState(false);
+  const [showScenarios, setShowScenarios] = useState(false); 
+  const [selectedComparison, setSelectedComparison] = useState(null);
+
+  // --- Funciones de Tablas ---
   const handleDeleteTable = async (tablaId, tablaNombre) => {
     const confirmDelete = window.confirm(
       `¿Seguro que quieres eliminar la tabla "${tablaNombre}"? Esta acción no se puede deshacer.`
@@ -45,7 +54,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: "20px", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      {/* Header Section */}
+      {/* Header */}
       <header style={{ 
         display: "flex", 
         justifyContent: "space-between", 
@@ -55,12 +64,17 @@ export default function Dashboard() {
         <div>
           <h1 style={{ margin: 0 }}>Bienvenido {user?.email || "Usuario"}</h1>
           <p style={{ margin: "5px 0 0", color: "#666" }}>
-            Gestiona y visualiza tus tablas o crea dashboards personalizados
+            Gestiona y visualiza tus tablas, dashboards y escenarios
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
+          {/* Botón Dashboards */}
           <button
-            onClick={() => setShowDashboards((prev) => !prev)}
+            onClick={() => {
+              setShowDashboards((prev) => !prev);
+              setShowScenarios(false);
+              setSelectedComparison(null);
+            }}
             style={{
               background: "#1976d2",
               color: "white",
@@ -73,6 +87,28 @@ export default function Dashboard() {
           >
             {showDashboards ? "Volver a Tablas" : "Mis Dashboards"}
           </button>
+
+          {/* Botón Escenarios */}
+          <button
+            onClick={() => {
+              setShowScenarios((prev) => !prev);
+              setShowDashboards(false);
+              setSelectedComparison(null);
+            }}
+            style={{
+              background: "#2e7d32",
+              color: "white",
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+              height: "fit-content"
+            }}
+          >
+            {showScenarios ? "Volver a Tablas" : "Mis Escenarios"}
+          </button>
+
+          {/* Botón Logout */}
           <button
             onClick={logoutUser}
             style={{
@@ -104,15 +140,29 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Main Workspace */}
+      {/* Workspace */}
       <div style={{ display: "flex", gap: "20px", minHeight: "calc(100vh - 180px)" }}>
+        
         {showDashboards ? (
-          // 👉 Vista de Dashboards
+          // 👉 Vista Dashboards
           <div style={{ flex: 1, background: "white", padding: "20px", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
             <DashboardSPA />
           </div>
+        ) : showScenarios ? (
+          // 👉 Vista Escenarios
+          <div style={{ flex: 1, background: "white", padding: "20px", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+            {selectedComparison ? (
+              <ScenarioDetail 
+                compId={selectedComparison} 
+                token={token} 
+                onBack={() => setSelectedComparison(null)} 
+              />
+            ) : (
+              <ScenarioList onSelect={(id) => setSelectedComparison(id)} />
+            )}
+          </div>
         ) : (
-          // 👉 Vista clásica de tablas y gráficos
+          // 👉 Vista Tablas
           <>
             {/* Left Panel - Upload and List */}
             <div style={{ 
